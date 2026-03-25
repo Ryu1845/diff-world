@@ -1,0 +1,123 @@
+\begin{thebibliography}{10}
+
+\bibitem{SingingSynthesis}
+M.~Blaauw and J.~Bonada.
+\newblock A neural parametric singing synthesizer.
+\newblock In {\em Proc. of Interspeech}, 2017.
+
+\bibitem{WganSing}
+P.~Chandna, M.~Blaauw, J.~Bonada, and E.~Gomez.
+\newblock {WGANSing}: A multi-voice singing voice synthesizer based on the
+  {Wasserstein-GAN}.
+\newblock In {\em Proc. of the 27th European Signal Processing Conference},
+  2019.
+
+\bibitem{Ddsp}
+J.~Engel, L.~Hantrakul, C.~Gu, and A.~Roberts.
+\newblock {DDSP}: Differentiable digital signal processing.
+\newblock In {\em Proc. of the International Conference on Learning
+  Representations}, pages 26--30, 2020.
+
+\bibitem{Ddspeech}
+G.~Fabbro, V.~Golkov, T.~Kemp, and D.~Cremers.
+\newblock Speech synthesis and control using differentiable {DSP}.
+\newblock {\em arXiv:2010.15084}, 2020.
+
+\bibitem{Timit}
+J.~S. Garapolo et~al.
+\newblock {\em {TIMIT} Acoustic-Phonetic Continuous Speech Corpus {LDC93S1}}.
+\newblock Linguistic Data Consortium, Philadelphia, 1993.
+
+\bibitem{WaveRnn}
+N.~Kalchbrenner et~al.
+\newblock Efficient neural audio synthesis.
+\newblock {\em arXiv:1802.08435}, 2018.
+
+\bibitem{MelGAN}
+K.~Kumar, R.~Kumar, T.~de~Boissiere, L.~Gestin, W.Z. Teoh, J.~Sotelo,
+  A.~de~Br\'{e}bisson, Y.~Bengio, and A.C. Courville.
+\newblock Melgan: Generative adversarial networks for conditional waveform
+  synthesis.
+\newblock In {\em Advances in Neural Information Processing Systems},
+  volume~32, 2019.
+
+\bibitem{Lent}
+K.~Lent.
+\newblock An efficient method for pitch shifting digitally sampled sounds.
+\newblock {\em Computer Music Journal}, 13(4):65--71, 1989.
+
+\bibitem{SeaNet}
+Y.~Li, M.~Tagliasacchi, O.~Rybakov, V.~Ungureanu, and D.~Roblek.
+\newblock Real-time speech frequency bandwidth extension.
+\newblock In {\em Proc. of the IEEE International Conference on Acoustics,
+  Speech and Signal Processing (ICASSP)}, pages 691--695, 2021.
+
+\bibitem{HooliGan}
+O.~{McCarthy} and Z.~Ahmed.
+\newblock Hooli{GAN}: Robust, high quality neural vocoding.
+\newblock {\em arXiv:2008.02493}, 2020.
+
+\bibitem{WORLD}
+M.~Morise, F.~Yokomori, and K.~Ozawa.
+\newblock {WORLD}: a vocoder-based high-quality speech synthesis system for
+  real-time applications.
+\newblock {\em IEICE Transactions on Information and Systems},
+  E99-D(7):1877--1884, 2016.
+
+\bibitem{Shahan1}
+S.~Nercessian.
+\newblock Improved zero-shot voice conversion using explicit conditioning
+  signals.
+\newblock In {\em Proc. of Interspeech}, pages 4711--4715, 2020.
+
+\bibitem{Shahan2}
+S.~Nercessian.
+\newblock Zero-shot singing voice conversion.
+\newblock In {\em Proc. of the International Society for Music Information
+  Retrieval Conference}, page 70–76, 2020.
+
+\bibitem{Shahan3}
+S.~Nercessian.
+\newblock End-to-end zero-shot voice conversion using a {DDSP} vocoder.
+\newblock In {\em Proc. of IEEE Workshop on Applications of Signal Processing
+  to Audio and Acoustics (WASPAA)}, pages 1--5, 2021.
+
+\bibitem{Tacotron}
+J.~Shen et~al.
+\newblock Natural {TTS} synthesis by conditioning {WaveNet} on {Mel}
+  spectrogram predictions.
+\newblock In {\em Proc. of the IEEE International Conference on Acoustics,
+  Speech and Signal Processing}, pages 4779--4783, 2018.
+
+\bibitem{HifiGan2}
+J.~Su, Z.~Jin, and A.~Finkelstein.
+\newblock {HiFi-GAN}-2: Studio-quality speech enhancement via generative
+  adversarial networks conditioned on acoustic features.
+\newblock In {\em Proc. of the IEEE Workshop on Applications of Signal
+  Processing to Audio and Acoustics (WASPAA)}, pages 166--170, 2021.
+
+\bibitem{HifiGan}
+J.~Su, Y.~Wang, A.~Finkelstein, and Z.~Jin.
+\newblock Bandwidth extension is all you need.
+\newblock In {\em Proc. of the IEEE International Conference on Acoustics,
+  Speech and Signal Processing (ICASSP)}, pages 696--700, 2021.
+
+\bibitem{LPCNet}
+J.M. Vali and J.~Skoglund.
+\newblock {LPCNET}: Improving neural speech synthesis through linear
+  prediction.
+\newblock In {\em Proc. of the IEEE International Conference on Acoustics,
+  Speech and Signal Processing (ICASSP)}, pages 5891--5895, 2019.
+
+\bibitem{WaveNet}
+A.~van~den Oord et~al.
+\newblock {WaveNet}: A generative model for raw audio.
+\newblock {\em arXiv:1609.03499}, 2016.
+
+\bibitem{Nsf2}
+X.~Wang and J.~Yamagishi.
+\newblock {Using Cyclic Noise as the Source Signal for Neural
+  Source-Filter-Based Speech Waveform Model}.
+\newblock In {\em Proc. of Interspeech}, pages 1992--1996, 2020.
+
+\end{thebibliography}
