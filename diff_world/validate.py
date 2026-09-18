@@ -3,7 +3,7 @@ import soundfile as sf
 import torch
 import matplotlib.pyplot as plt
 
-from .analysis import world_analyze, world_synthesize_ref
+from .analysis import world_analyze
 from .compression import ParameterCompressor, mel_filterbank
 from .synthesizer import DiffWORLDSynthesizer
 
@@ -31,7 +31,7 @@ def compute_log_mel_spectrogram(
 
 
 def run_validation(audio_path: str, output_dir: str = "output"):
-    """Compare differentiable WORLD synthesizer output to pyworld reference."""
+    """Compare differentiable WORLD synthesizer output to the original audio."""
     import os
 
     os.makedirs(output_dir, exist_ok=True)
@@ -50,10 +50,6 @@ def run_validation(audio_path: str, output_dir: str = "output"):
     f0, sp, ap = features["f0"], features["sp"], features["ap"]
     print(f"WORLD analysis: {f0.shape[0]} frames, sp shape {sp.shape}")
 
-    # Reference synthesis via pyworld
-    ref = world_synthesize_ref(f0, sp, ap, fs=fs)
-    print(f"pyworld synthesis: {len(ref)} samples")
-
     # Differentiable synthesis
     synth = DiffWORLDSynthesizer(fs=fs)
     with torch.no_grad():
@@ -65,61 +61,42 @@ def run_validation(audio_path: str, output_dir: str = "output"):
     print(f"diff-world synthesis: {len(diff_out)} samples")
 
     # Trim to common length
-    min_len = min(len(audio), len(ref), len(diff_out))
+    min_len = min(len(audio), len(diff_out))
     audio = audio[:min_len]
-    ref = ref[:min_len]
     diff_out = diff_out[:min_len]
 
     # Metrics (no amplitude normalization — compare raw outputs)
     mel_orig = compute_log_mel_spectrogram(audio, fs)
-    mel_ref = compute_log_mel_spectrogram(ref, fs)
     mel_diff = compute_log_mel_spectrogram(diff_out, fs)
 
     # Trim mel spectrograms to common time length
-    min_t = min(mel_orig.shape[1], mel_ref.shape[1], mel_diff.shape[1])
+    min_t = min(mel_orig.shape[1], mel_diff.shape[1])
     mel_orig = mel_orig[:, :min_t]
-    mel_ref = mel_ref[:, :min_t]
     mel_diff = mel_diff[:, :min_t]
 
-    l1_ref = np.mean(np.abs(mel_orig - mel_ref))
     l1_diff = np.mean(np.abs(mel_orig - mel_diff))
-    l1_ref_vs_diff = np.mean(np.abs(mel_ref - mel_diff))
 
     print(f"\nLog-Mel L1 errors:")
-    print(f"  original vs pyworld:    {l1_ref:.4f}")
     print(f"  original vs diff-world: {l1_diff:.4f}")
-    print(f"  pyworld vs diff-world:  {l1_ref_vs_diff:.4f}")
-
-    # Spectral SNR (phase-invariant comparison)
-    spec_ref = np.abs(np.fft.rfft(ref))
-    spec_diff = np.abs(np.fft.rfft(diff_out))
-    spec_noise = spec_ref - spec_diff
-    spectral_snr = 10 * np.log10(
-        (np.sum(spec_ref**2) + 1e-10) / (np.sum(spec_noise**2) + 1e-10)
-    )
-    print(f"  Spectral SNR (pyworld vs diff-world): {spectral_snr:.1f} dB")
 
     # RMS comparison
     rms_orig = np.sqrt(np.mean(audio**2))
-    rms_ref = np.sqrt(np.mean(ref**2))
     rms_diff = np.sqrt(np.mean(diff_out**2))
     print(f"\nRMS levels:")
     print(f"  original:   {rms_orig:.4f}")
-    print(f"  pyworld:    {rms_ref:.4f}")
     print(f"  diff-world: {rms_diff:.4f}")
 
     # Save audio
     sf.write(os.path.join(output_dir, "original.wav"), audio, fs)
-    sf.write(os.path.join(output_dir, "pyworld.wav"), ref, fs)
     sf.write(os.path.join(output_dir, "diffworld.wav"), diff_out, fs)
     print(f"\nSaved WAVs to {output_dir}/")
 
     # Plot
-    fig, axes = plt.subplots(3, 1, figsize=(12, 8), sharex=True, sharey=True)
+    fig, axes = plt.subplots(2, 1, figsize=(12, 6), sharex=True, sharey=True)
     for ax, mel, title in zip(
         axes,
-        [mel_orig, mel_ref, mel_diff],
-        ["Original", "pyworld", "diff-world"],
+        [mel_orig, mel_diff],
+        ["Original", "diff-world"],
     ):
         ax.imshow(mel, aspect="auto", origin="lower", interpolation="nearest")
         ax.set_title(title)

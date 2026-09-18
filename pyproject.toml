@@ -7,7 +7,9 @@ requires-python = ">=3.13"
 dependencies = [
     "torch>=2.2",
     "numpy>=1.26",
-    "pyworld>=0.3.4",
     "soundfile>=0.12",
     "matplotlib>=3.8",
 ]
+
+[dependency-groups]
+dev = ["pyworld>=0.3.4", "pytest>=8"]

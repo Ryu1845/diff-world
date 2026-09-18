@@ -2,12 +2,12 @@
 
 ## Phase 1: Core Differentiable WORLD Synthesizer
 
-- [x] WORLD analysis wrapper (extract f0, sp, ap from audio via pyworld)
+- [x] WORLD analysis (native vectorized PyTorch DIO/StoneMask/CheapTrick/D4C)
 - [x] Alias-free harmonic synthesis (K=155 sinusoids, f_min=71 Hz)
 - [x] Noise synthesis (Gaussian noise filtered by ap * sqrt(sp))
 - [x] STFT-domain filtering for both components (N=1024, hop=256)
 - [x] Baseline synthesizer output: y = g_h * h + g_n * n
-- [x] Validate: invert WORLD features and compare to pyworld's own synthesis
+- [x] Validate: invert WORLD features and compare to the original audio
 
 ## Phase 2: Parameter Compression/Decompression
 
