@@ -1,14 +1,15 @@
 """StoneMask F0 refinement, ported from WORLD's stonemask.cpp (BSD-3-Clause).
 
 Each frame's internal FFT size depends on its own f0, so frames are bucketed by
-identical fft_size and each bucket runs as one batched FFT.
+identical fft_size and each bucket runs as one batched FFT. Bucketing costs one
+host sync per call, however many utterances the frames come from.
 """
 
 import math
 
 import torch
 
-from ._common import KLOG2, KSG, matlab_round
+from ._common import KLOG2, KSG, clamp_gather, matlab_round
 
 KFLOOR_F0_STONEMASK = 40.0
 
@@ -39,19 +40,25 @@ def _fix_f0(
 
 
 def stonemask(
-    x: torch.Tensor, f0: torch.Tensor, t: torch.Tensor, fs: int
+    x: torch.Tensor,
+    f0: torch.Tensor,
+    t: torch.Tensor,
+    fs: int,
+    *,
+    bounds: tuple[torch.Tensor, torch.Tensor] | None = None,
 ) -> torch.Tensor:
-    """Refine a DIO F0 contour via instantaneous frequency. Returns (F,)."""
+    """Refine a DIO F0 contour via instantaneous frequency. Returns (F,).
+
+    bounds: per-frame (start, length) of each frame's utterance in x, when
+    frames of several utterances share one flat x (see ``clamp_gather``).
+    """
     dev = x.device
     x = x.to(torch.float64)
     f0 = f0.to(torch.float64)
     t = t.to(torch.float64)
-    x_length = x.shape[0]
 
     out = torch.zeros_like(f0)
     active = (f0 > KFLOOR_F0_STONEMASK) & (f0 <= fs / 12.0)
-    if not bool(active.any()):
-        return out
 
     hwl = torch.trunc(1.5 * fs / f0.clamp_min(KSG) + 1.0)  # truncation, not rounding
     length = 2.0 * hwl + 1.0
@@ -59,18 +66,28 @@ def stonemask(
     # 2047.999... for 2**11, which truncates to 2047 and silently corrupts the
     # per-frame FFT size. Exponent is exact and small, so 1 << e is safe.
     exponent = (2.0 + torch.trunc(torch.log(length) / KLOG2)).long()
-    fft_sizes = torch.ones_like(exponent) << exponent
 
     # Tensor divisor, not the Python float: CUDA turns float64 `/ scalar` into a
     # reciprocal-multiply that is 1 ulp off true division, which perturbs the
     # window phase and moves the refined F0 by ~0.07 Hz. See dio()'s `t`.
     fs_t = torch.tensor(float(fs), device=dev, dtype=torch.float64)
 
-    idx_all = torch.nonzero(active).squeeze(1)
-    for size in torch.unique(fft_sizes[idx_all]).tolist():
-        sel = idx_all[fft_sizes[idx_all] == size]
+    # Sort active frames by exponent (inactive ones to key 0) so each bucket
+    # is a contiguous slice; the counts are the only host round trip.
+    key = torch.where(active, exponent, torch.zeros_like(exponent))
+    order = torch.argsort(key, stable=True)
+    counts = torch.bincount(key).tolist()
+    offset = counts[0]
+    for e in range(1, len(counts)):
+        if counts[e] == 0:
+            continue
+        sel = order[offset : offset + counts[e]]
+        offset += counts[e]
+        size = 1 << e
+        # 2 + trunc(log2(2h + 1)) == e implies 2h + 1 < size / 2, so this static
+        # width covers every frame in the bucket; the excess is masked below.
+        n_max = size // 4 - 1
         h = hwl[sel]
-        n_max = int(h.max().item())
         j = torch.arange(2 * n_max + 1, device=dev, dtype=torch.float64).unsqueeze(0)
         n = j - h.unsqueeze(1)
         valid = j <= (2 * h).unsqueeze(1)
@@ -96,13 +113,12 @@ def stonemask(
         dw[:, -1] = mw[:, -2] / 2.0
         dw = torch.where(valid, dw, torch.zeros_like(dw))
 
-        seg = x[(index_raw - 1).long().clamp_(0, x_length - 1)]  # edge replication
-        buf = torch.zeros(sel.numel(), size, dtype=torch.float64, device=dev)
-        buf[:, : mw.shape[1]] = seg * mw
-        ms = torch.fft.rfft(buf, dim=1)
-        buf = torch.zeros(sel.numel(), size, dtype=torch.float64, device=dev)
-        buf[:, : dw.shape[1]] = seg * dw
-        ds = torch.fft.rfft(buf, dim=1)
+        sub = None if bounds is None else (bounds[0][sel], bounds[1][sel])
+        seg = clamp_gather(x, (index_raw - 1).long(), sub)  # edge replication
+        buf = torch.zeros(2, sel.numel(), size, dtype=torch.float64, device=dev)
+        buf[0, :, : mw.shape[1]] = seg * mw
+        buf[1, :, : dw.shape[1]] = seg * dw
+        ms, ds = torch.fft.rfft(buf, dim=-1)
 
         num_i = ms.real * ds.imag - ms.imag * ds.real
         power = ms.real**2 + ms.imag**2
