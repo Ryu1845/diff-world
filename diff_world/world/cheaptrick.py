@@ -1,5 +1,6 @@
 """CheapTrick spectral envelope estimation, ported from WORLD's cheaptrick.cpp
-(BSD-3-Clause). Fully batched: one (F, fft_size) buffer, one rfft, one irfft.
+(BSD-3-Clause). Fully batched: one (F, fft_size) buffer, one rfft, one irfft,
+and one host sync (the f0 maximum that sizes the spectral smoothing).
 """
 
 import math
@@ -9,11 +10,13 @@ import torch
 from ._common import (
     KEPS,
     KSG,
+    clamp_gather,
     dc_correction,
     dither,
     frame_windows,
     linear_smoothing,
     matlab_round,
+    round_int,
 )
 
 KDEFAULT_F0 = 500.0
@@ -37,8 +40,14 @@ def cheaptrick(
     fft_size: int = 1024,
     q1: float = -0.15,
     generator: torch.Generator | None = None,
+    *,
+    bounds: tuple[torch.Tensor, torch.Tensor] | None = None,
 ) -> torch.Tensor:
-    """Estimate spectral envelopes. Returns (F, fft_size//2+1) power spectra."""
+    """Estimate spectral envelopes. Returns (F, fft_size//2+1) power spectra.
+
+    bounds: per-frame (start, length) of each frame's utterance in x, when
+    frames of several utterances share one flat x (see ``clamp_gather``).
+    """
     dev = x.device
     x = x.to(torch.float64)
     f0 = f0.to(torch.float64)
@@ -52,18 +61,20 @@ def cheaptrick(
     cf0 = torch.where(f0 <= floor, torch.full_like(f0, KDEFAULT_F0), f0)
 
     # F0-adaptive windowing. Ragged windows are LEFT-ALIGNED at buffer index 0,
-    # exactly as the C writes them.
+    # exactly as the C writes them. cf0 >= min(floor, KDEFAULT_F0) bounds the
+    # half window statically (+1 for a 1-ulp device/host disagreement), so no
+    # sync; the excess width is masked.
     hwl = matlab_round(1.5 * fs / cf0)
-    n, valid = frame_windows(hwl, int(hwl.max().item()))
+    n, valid = frame_windows(hwl, round_int(1.5 * fs / min(floor, KDEFAULT_F0)) + 1)
     origin = matlab_round(t * fs + 0.001).unsqueeze(1)
-    safe = (origin + n).long().clamp_(0, x.shape[0] - 1)
 
     w = 0.5 * torch.cos(math.pi * (n / 1.5 / fs) * cf0.unsqueeze(1)) + 0.5
     w = torch.where(valid, w, torch.zeros_like(w))
     w = w / torch.sqrt((w * w).sum(1, keepdim=True))  # normalize the window
 
     noise = dither(w.shape, generator, dev) * KSG
-    seg = torch.where(valid, x[safe] * w + noise, torch.zeros_like(w))
+    samples = clamp_gather(x, (origin + n).long(), bounds)
+    seg = torch.where(valid, samples * w + noise, torch.zeros_like(w))
     # Window-weighted mean removal; w == 0 outside `valid` keeps the tail clean.
     seg = seg - w * (seg.sum(1, keepdim=True) / w.sum(1, keepdim=True))
 
@@ -73,8 +84,9 @@ def cheaptrick(
     spec = torch.fft.rfft(buf, dim=1)
     ps = spec.real**2 + spec.imag**2
 
-    ps = dc_correction(ps, cf0, fs, fft_size)
-    ps = linear_smoothing(ps, cf0 * 2.0 / 3.0, fs, fft_size)
+    f0_max = cf0.max().item()
+    ps = dc_correction(ps, cf0, fs, fft_size, f0_max)
+    ps = linear_smoothing(ps, cf0 * 2.0 / 3.0, fs, fft_size, f0_max * 2.0 / 3.0)
     # Infinitesimal noise: this is what guards the log() below against zeros.
     ps = ps + dither(ps.shape, generator, dev).abs() * KEPS
 
